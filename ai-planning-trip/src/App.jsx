@@ -9,9 +9,13 @@ function App() {
   return (
     <div className="app">
       <BrowserRouter>
-        <Navbar />
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={
+            <>
+              <Navbar />
+              <Home />
+            </>
+          } />
           <Route path="/plan" element={<Plan />} />
         </Routes>
       </BrowserRouter>

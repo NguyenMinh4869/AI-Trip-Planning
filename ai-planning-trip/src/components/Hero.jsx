@@ -43,8 +43,14 @@ function Hero() {
             }}
           />
         )}
-        {loading && <p style={{marginTop:12}}>Generating itinerary...</p>}
-        {itinerary && <ItineraryView data={itinerary} />}
+        {loading && (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <h3>Đang tạo lịch trình du lịch...</h3>
+            <p>AI đang phân tích và tạo kế hoạch chi tiết cho chuyến đi của bạn</p>
+          </div>
+        )}
+        {itinerary && <ItineraryView data={itinerary} tripInfo={{ from: fromPlace, to: toPlace }} />}
       </div>
     </section>
   )

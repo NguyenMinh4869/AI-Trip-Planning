@@ -19,6 +19,7 @@ function TripFields({ onGenerate }) {
           <input placeholder="Interests (Optional)" />
         </div>
         <button className="btn btn--primary generate__btn" onClick={() => {
+          console.log('Generate clicked with:', { dates, options: gbp })
           if (onGenerate) return onGenerate({ dates, options: gbp })
           navigate('/plan', { state: { dates, options: gbp } })
         }}>Generate</button>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import ItineraryView from '../components/ItineraryView'
-import { generateItinerary } from '../lib/aiClient'
+import { generateItinerary, buildItineraryPrompt } from '../lib/aiClient'
 
 function Plan() {
   const location = useLocation()
@@ -10,20 +10,36 @@ function Plan() {
   const [itinerary, setItinerary] = useState(null)
 
   useEffect(() => {
+    // Initialize map immediately when component mounts
+    const initMapAsync = async () => {
+      const mod = await import('../lib/map')
+      mod.initMap && mod.initMap()
+      // Add sample locations with custom icons
+      mod.addSampleLocations && mod.addSampleLocations()
+    }
+    initMapAsync()
+  }, [])
+
+  useEffect(() => {
     async function run() {
       if (!from || !to) return
       try {
         setLoading(true)
-        const prompt = `Plan a day-by-day itinerary as JSON for a trip from ${from} to ${to}. Dates: ${dates?.start || 'TBD'} to ${dates?.end || 'TBD'}. Guests: ${options?.guests}. Budget: ${options?.budget}. Pace: ${options?.pace}. Output schema: {\"summary\": string, \"days\":[{\"date\": string, \"items\":[{\"time\": string, \"title\": string, \"lat\": number, \"lng\": number}]}]}.`
+        console.log('Generating itinerary with options:', { from, to, dates, options })
+        
+        const prompt = buildItineraryPrompt({ from, to, dates, options })
+        console.log('Generated prompt:', prompt)
+        
         const text = await generateItinerary(prompt)
         setItinerary(text)
         try {
           const parsed = JSON.parse(text)
           const items = parsed?.days?.flatMap((d) => d.items || []) || []
           const mod = await import('../lib/map')
-          mod.initMap && mod.initMap()
           mod.setMarkers && mod.setMarkers(items)
         } catch {}
+      } catch (error) {
+        console.error('Error generating itinerary:', error)
       } finally {
         setLoading(false)
       }
@@ -33,9 +49,25 @@ function Plan() {
 
   return (
     <div className="layout">
-      <div>
-        {loading && <p style={{marginTop:12}}>Generating itinerary...</p>}
-        <ItineraryView data={itinerary} />
+      <div className="itinerary-container">
+        {/* Header */}
+        <div className="plan-header">
+          <div className="plan-header__content">
+            <h1 className="plan-header__logo">Easytrip.ai</h1>
+            <div className="plan-header__actions">
+              <button className="btn btn--ghost">Sign in</button>
+            </div>
+          </div>
+        </div>
+        
+        {loading && (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <h3>Đang tạo lịch trình du lịch...</h3>
+            <p>AI đang phân tích và tạo kế hoạch chi tiết cho chuyến đi của bạn</p>
+          </div>
+        )}
+        <ItineraryView data={itinerary} tripInfo={{ from, to, dates, options }} />
       </div>
       <div className="map" id="map" />
     </div>

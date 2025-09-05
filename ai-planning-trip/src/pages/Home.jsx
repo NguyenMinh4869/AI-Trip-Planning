@@ -4,12 +4,9 @@ import Popular from '../components/Popular'
 
 function Home() {
   return (
-    <div className="layout">
-      <div>
-        <Hero />
-        <Popular />
-      </div>
-      <div className="map" id="map" />
+    <div className="home-layout">
+      <Hero />
+      <Popular />
     </div>
   )
 }

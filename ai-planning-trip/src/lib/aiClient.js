@@ -19,7 +19,7 @@ async function callModel(prompt, apiKey, model) {
     body: JSON.stringify({
       model,
       messages: [
-        { role: 'system', content: 'You are a travel planner that outputs concise JSON.' },
+        { role: 'system', content: 'You are a travel planner. You MUST respond with valid JSON only. No explanations, no markdown, no code blocks. Follow the exact schema provided by the user.' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.6,
@@ -46,7 +46,14 @@ export async function generateItinerary(prompt) {
   const modelsToTry = preferred ? [preferred, ...DEFAULT_MODELS] : DEFAULT_MODELS
   let lastErr
   for (const model of modelsToTry) {
-    try { return await callModel(prompt, apiKey, model) } catch (e) { lastErr = e }
+    try { 
+      const result = await callModel(prompt, apiKey, model)
+      console.log('AI response from', model, ':', result)
+      return result
+    } catch (e) { 
+      console.log('Model', model, 'failed:', e.message)
+      lastErr = e 
+    }
   }
   throw lastErr || new Error('All models failed')
 }
@@ -57,13 +64,96 @@ export function buildItineraryPrompt({ from, to, dates, options }) {
   const guests = options?.guests || 'solo'
   const budget = options?.budget || '$'
   const pace = options?.pace || 'Relax'
-  return (
-    `You are a trip planner.
-Return ONLY valid JSON (no prose, no markdown). Schema: {"summary": string, "days": [{"date": string, "items": [{"time": string, "title": string, "lat": number, "lng": number}]}]}.
-Trip: from ${from} to ${to}. Dates: ${start} to ${end}. Guests: ${guests}. Budget: ${budget}. Pace: ${pace}.
-3 days preferred. Times in local time. Include realistic lat/lng for each item.
-Reply with the JSON object only.`
-  )
+  
+  // Calculate actual number of days
+  let numDays = 1
+  if (start && end && start !== 'TBD' && end !== 'TBD') {
+    const startDate = new Date(start)
+    const endDate = new Date(end)
+    numDays = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)))
+  }
+  
+  // Map options to more descriptive text
+  const guestDesc = {
+    'solo': 'solo traveler',
+    'couple': 'couple',
+    'friends': 'group of friends',
+    'family': 'family with children'
+  }[guests] || 'solo traveler'
+  
+  const budgetDesc = {
+    '$': 'budget/low-cost',
+    '$$': 'mid-range/moderate',
+    '$$$': 'luxury/high-end'
+  }[budget] || 'budget'
+  
+  const paceDesc = {
+    'Relax': 'relaxed and leisurely pace',
+    'Normal': 'moderate pace with some activities',
+    'Active': 'active and adventurous pace'
+  }[pace] || 'relaxed'
+  
+  return `You are a travel planner. Create a detailed itinerary in JSON format.
+
+CRITICAL: Return ONLY valid JSON. No explanations, no markdown, no code blocks, no additional text before or after the JSON.
+
+Required JSON schema:
+{
+  "summary": "Brief description of the trip",
+  "days": [
+    {
+      "date": "YYYY-MM-DD",
+      "items": [
+        {
+          "time": "HH:MM",
+          "title": "Activity description",
+          "lat": 10.1234,
+          "lng": 106.5678
+        }
+      ]
+    }
+  ]
+}
+
+Trip details:
+- From: ${from}
+- To: ${to}
+- Dates: ${start} to ${end}
+- Duration: ${numDays} day${numDays > 1 ? 's' : ''}
+- Travelers: ${guestDesc}
+- Budget level: ${budgetDesc}
+- Travel pace: ${paceDesc}
+
+Requirements:
+- Create EXACTLY ${numDays} day${numDays > 1 ? 's' : ''} itinerary - NO MORE, NO LESS
+- If ${numDays} = 1, create only ONE day with all activities in that single day
+- If ${numDays} = 2, create exactly TWO days
+- Use realistic times in HH:MM format
+- Include accurate lat/lng coordinates for each location
+- Make activities suitable for ${budgetDesc} budget and ${paceDesc}
+- Include transportation, accommodation, meals, and attractions
+- Consider that this is for ${guestDesc}
+
+SPECIFIC LOCATION REQUIREMENTS:
+- Use REAL, SPECIFIC place names (hotels, restaurants, attractions)
+- Research actual places in ${to} and use their real names
+- For hotels: Use actual hotel names like "Hotel A25", "Dak Lak Hotel", "Sakura Hotel"
+- For restaurants: Use actual restaurant names like "Nhà hàng Cơm Niêu", "Quán ăn Đặc sản", "Café Trung Nguyên"
+- For attractions: Use actual attraction names like "Bảo tàng Đắk Lắk", "Chợ Buôn Ma Thuột", "Thác Dray Nur"
+- For transportation: Use specific details like "Sân bay Liên Khương", "Ga xe lửa Buôn Ma Thuột"
+
+CRITICAL: The "days" array must contain EXACTLY ${numDays} objects. Do not create extra days.
+
+IMPORTANT FORMATTING RULES:
+- Each activity title must be SHORT and CONCISE (max 40 characters)
+- Use SPECIFIC location names, not generic terms
+- Examples of good titles: "Chuyến bay Hà Nội - Đắk Lắk", "Nhận phòng tại Hotel A25", "Ăn trưa tại Nhà hàng Cơm Niêu", "Tham quan Bảo tàng Đắk Lắk", "Cà phê tại Trung Nguyên Legend"
+- Use real, specific place names when possible
+- Avoid generic terms like "hotel", "restaurant", "museum" - use actual names
+- Keep titles in Vietnamese
+- Each title should be a single, clear action with specific location
+
+Return only the JSON object:`
 }
 
 

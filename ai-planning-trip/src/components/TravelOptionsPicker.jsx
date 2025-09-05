@@ -42,6 +42,7 @@ function TravelOptionsPicker({ value, onChange }) {
 
   function apply() {
     setOpen(false)
+    console.log('Applying travel options:', local)
     onChange?.(local)
   }
 
