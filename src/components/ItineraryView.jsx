@@ -9,7 +9,7 @@ function createFallbackItinerary(data, tripInfo) {
   if (tripInfo?.dates?.start && tripInfo?.dates?.end) {
     const startDate = new Date(tripInfo.dates.start)
     const endDate = new Date(tripInfo.dates.end)
-    numDays = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)))
+    numDays = Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1)
   }
   
   // Try to extract some useful information from the raw text
@@ -20,43 +20,33 @@ function createFallbackItinerary(data, tripInfo) {
   lines.forEach(line => {
     const timeMatch = line.match(/(\d{1,2}:\d{2}|\d{1,2}\s*(am|pm))/i)
     if (timeMatch) {
+      let timeStr = timeMatch[0]
+      
+      // Validate and fix invalid times
+      if (timeStr.includes(':')) {
+        const [hours, minutes] = timeStr.split(':').map(Number)
+        if (hours >= 24) {
+          timeStr = `${hours % 24}:${minutes.toString().padStart(2, '0')}`
+        }
+        if (minutes >= 60) {
+          timeStr = `${hours}:${minutes % 60}`
+        }
+      }
+      
       let activity = line.replace(timeMatch[0], '').trim()
       
       // Clean up and shorten the activity description
       if (activity && activity.length > 5) {
-        // Extract meaningful content from complex text
         let cleanActivity = activity
-        
-        // Remove everything before the first meaningful word
-        cleanActivity = cleanActivity.replace(/^.*?(?=Departure|Flight|Travel|Check-in|Lunch|Dinner|Visit|Sleep|Breakfast|Taxi|Arrive)/i, '')
-        
-        // Extract title from complex patterns
-        const titleMatch = cleanActivity.match(/title:\s*["']?([^"',\n]+)["']?/i)
-        if (titleMatch) {
-          cleanActivity = titleMatch[1].trim()
-        }
-        
-        // Clean up common patterns
-        cleanActivity = cleanActivity
           .replace(/^[-•]\s*/, '') // Remove bullet points
-          .replace(/^(We'll|We|analysis|analysisWe|analysisWe need|analysisWe need to|analysisWe need to output|analysisWe need to output a|analysisWe need to output a JSON|analysisWe need to output a JSON object|analysisWe need to output a JSON object matching|analysisWe need to output a JSON object matching schema)/i, '')
-          .replace(/^(Departure|Departure from|Departure from Hanoi|Departure from Hanoi to|Departure from Hanoi to airport|Departure from Hanoi to airport\?|Departure from Hanoi to airport\? Actually|Departure from Hanoi to airport\? Actually departure|Departure from Hanoi to airport\? Actually departure from|Departure from Hanoi to airport\? Actually departure from home|Departure from Hanoi to airport\? Actually departure from home to|Departure from Hanoi to airport\? Actually departure from home to airport|Departure from Hanoi to airport\? Actually departure from home to airport maybe|Departure from Hanoi to airport\? Actually departure from home to airport maybe 07:30)/i, 'Di chuyển đến sân bay')
-          .replace(/^(Travel|Travel to|Travel to Noi|Travel to Noi Bai|Travel to Noi Bai Airport)/i, 'Di chuyển đến Sân bay Liên Khương')
-          .replace(/^(Flight|Flight from|Flight from Hanoi|Flight from Hanoi to|Flight from Hanoi to Daklak|Flight to Dak Lak)/i, 'Chuyến bay Hà Nội - Đắk Lắk')
-          .replace(/^(Arrive|Arrive at|Arrive at Dak Lak Airport)/i, 'Đến Sân bay Liên Khương')
-          .replace(/^(Taxi|Taxi to|Taxi to hotel)/i, 'Di chuyển đến Hotel A25')
-          .replace(/^(Check-in|Check-in at|Check-in at hotel|Check-in at Budget)/i, 'Nhận phòng tại Hotel A25')
-          .replace(/^(Lunch|Lunch at|Lunch at local|Lunch at local stall)/i, 'Ăn trưa tại Nhà hàng Đặc sản')
-          .replace(/^(Visit|Visit Plei|Visit Plei Nta|Visit Plei Nta Village)/i, 'Tham quan Làng Plei Nta')
-          .replace(/^(Visit Dak Lak Museum)/i, 'Tham quan Bảo tàng Đắk Lắk')
-          .replace(/^(Dinner|Dinner at|Dinner at local|Dinner at local street|Dinner at local street food)/i, 'Ăn tối tại Quán ăn Địa phương')
-          .replace(/^(Sleep|Sleep\.)/i, 'Nghỉ đêm tại Hotel A25')
+          .replace(/^(We'll|We|analysis|analysisWe|JSON|object|schema|matching|output|need|to|a|the|and|or|but|in|on|at|to|for|of|with|by|lat|lng|Ing|coordinates)/i, '')
           .replace(/\s*\.\s*title:.*$/i, '') // Remove .title: parts
-          .replace(/\s*lat\/Ing.*$/i, '') // Remove lat/lng parts
           .replace(/\s*lat\/Ing.*$/i, '') // Remove lat/lng parts
           .replace(/\s*\.\s*lat.*$/i, '') // Remove .lat parts
           .replace(/\s*\.\s*lng.*$/i, '') // Remove .lng parts
           .replace(/\s*\.\s*\.\.\..*$/i, '') // Remove ... parts
+          .replace(/^[^a-zA-ZÀ-ỹ]*/, '') // Remove non-letter characters at start
+          .replace(/\s+/g, ' ') // Normalize spaces
           .trim()
         
         // If still too long, try to extract the first meaningful sentence
@@ -65,20 +55,12 @@ function createFallbackItinerary(data, tripInfo) {
           cleanActivity = sentences[0] || cleanActivity.substring(0, 47) + '...'
         }
         
-        // Final cleanup
-        cleanActivity = cleanActivity
-          .replace(/^[^a-zA-ZÀ-ỹ]*/, '') // Remove non-letter characters at start
-          .replace(/\s+/g, ' ') // Normalize spaces
-          .trim()
-        
         // Only add if we have a meaningful activity
-        if (cleanActivity.length > 2 && 
-            cleanActivity.length <= 50 && 
-            !cleanActivity.match(/^(analysis|We|We'll|JSON|object|schema|matching|output|need|to|a|the|and|or|but|in|on|at|to|for|of|with|by|lat|lng|Ing|coordinates)/i)) {
+        if (cleanActivity.length > 2 && cleanActivity.length <= 50) {
           activities.push({
-            time: timeMatch[0],
+            time: timeStr,
             title: cleanActivity,
-            lat: 10.8231 + (Math.random() - 0.5) * 0.1, // Approximate coordinates
+            lat: 10.8231 + (Math.random() - 0.5) * 0.1,
             lng: 106.6297 + (Math.random() - 0.5) * 0.1
           })
         }
@@ -86,37 +68,17 @@ function createFallbackItinerary(data, tripInfo) {
     }
   })
   
-  // If no time-based activities found, try to extract from long text descriptions
+  // If no time-based activities found, create default activities
   if (activities.length === 0) {
-    // Look for common travel activities in the text
-    const text = data.toLowerCase()
-    const commonActivities = [
-      { pattern: /flight|airport|departure|arrival/i, title: 'Chuyến bay Hà Nội - Đắk Lắk' },
-      { pattern: /check.?in|hotel|accommodation|hostel/i, title: 'Nhận phòng tại Hotel A25' },
-      { pattern: /breakfast|morning|sáng/i, title: 'Ăn sáng tại Quán Cơm Sáng' },
-      { pattern: /lunch|trưa|noon/i, title: 'Ăn trưa tại Nhà hàng Đặc sản' },
-      { pattern: /dinner|evening|tối/i, title: 'Ăn tối tại Quán ăn Địa phương' },
-      { pattern: /temple|pagoda|chùa/i, title: 'Tham quan Chùa Khải Đoan' },
-      { pattern: /lake|hồ/i, title: 'Tham quan Hồ Lắk' },
-      { pattern: /market|chợ/i, title: 'Tham quan Chợ Buôn Ma Thuột' },
-      { pattern: /museum|bảo tàng/i, title: 'Tham quan Bảo tàng Đắk Lắk' },
-      { pattern: /coffee|cà phê/i, title: 'Cà phê tại Trung Nguyên Legend' },
-      { pattern: /street food|ăn vặt/i, title: 'Ăn vặt tại Chợ Đêm' },
-      { pattern: /taxi|xe|transport/i, title: 'Di chuyển bằng taxi' },
-      { pattern: /relax|nghỉ|rest/i, title: 'Nghỉ ngơi tại khách sạn' },
-      { pattern: /sleep|ngủ/i, title: 'Nghỉ đêm tại Hotel A25' }
+    const defaultActivities = [
+      { time: '08:00', title: 'Khởi hành từ khách sạn', lat: 10.8231, lng: 106.6297 },
+      { time: '10:00', title: 'Tham quan điểm đến đầu tiên', lat: 10.8331, lng: 106.6397 },
+      { time: '12:00', title: 'Ăn trưa tại nhà hàng địa phương', lat: 10.8131, lng: 106.6197 },
+      { time: '14:00', title: 'Tham quan điểm thứ hai', lat: 10.8431, lng: 106.6497 },
+      { time: '16:00', title: 'Nghỉ ngơi và thưởng thức cà phê', lat: 10.8531, lng: 106.6597 },
+      { time: '18:00', title: 'Ăn tối và khám phá ẩm thực', lat: 10.8631, lng: 106.6697 }
     ]
-    
-    commonActivities.forEach((activity, index) => {
-      if (activity.pattern.test(data)) {
-        activities.push({
-          time: `${6 + index * 2}:00`,
-          title: activity.title,
-          lat: 10.8231 + (Math.random() - 0.5) * 0.1,
-          lng: 106.6297 + (Math.random() - 0.5) * 0.1
-        })
-      }
-    })
+    activities.push(...defaultActivities)
   }
   
   if (activities.length === 0) return null
@@ -125,23 +87,54 @@ function createFallbackItinerary(data, tripInfo) {
   const days = []
   const startDate = tripInfo?.dates?.start ? new Date(tripInfo.dates.start) : new Date()
   
+  // Create different activities for each day
+  const dayTemplates = [
+    [
+      { time: '08:00', title: 'Chuyến bay đến điểm đến' },
+      { time: '10:30', title: 'Nhận phòng khách sạn' },
+      { time: '12:00', title: 'Ăn trưa tại nhà hàng địa phương' },
+      { time: '14:00', title: 'Tham quan trung tâm thành phố' },
+      { time: '16:00', title: 'Thưởng thức cà phê và nghỉ ngơi' },
+      { time: '18:30', title: 'Ăn tối và khám phá ẩm thực' }
+    ],
+    [
+      { time: '07:30', title: 'Ăn sáng tại khách sạn' },
+      { time: '09:00', title: 'Tham quan bảo tàng và di tích' },
+      { time: '11:30', title: 'Mua sắm tại chợ địa phương' },
+      { time: '13:00', title: 'Ăn trưa món đặc sản' },
+      { time: '15:00', title: 'Tham quan vườn quốc gia' },
+      { time: '18:00', title: 'Ăn tối và xem biểu diễn văn hóa' }
+    ],
+    [
+      { time: '08:00', title: 'Tham quan thác nước' },
+      { time: '10:30', title: 'Hoạt động ngoài trời' },
+      { time: '12:30', title: 'Picnic bên hồ' },
+      { time: '14:30', title: 'Thăm làng nghề truyền thống' },
+      { time: '17:00', title: 'Ngắm hoàng hôn' },
+      { time: '19:00', title: 'Ăn tối BBQ ngoài trời' }
+    ]
+  ]
+  
   for (let i = 0; i < numDays; i++) {
     const currentDate = new Date(startDate)
     currentDate.setDate(currentDate.getDate() + i)
     
-    // Distribute activities across days
-    const itemsPerDay = Math.ceil(activities.length / numDays)
-    const startIdx = i * itemsPerDay
-    const endIdx = Math.min(startIdx + itemsPerDay, activities.length)
+    // Use different template for each day, cycle if more days than templates
+    const templateIndex = i % dayTemplates.length
+    const dayActivities = dayTemplates[templateIndex].map(activity => ({
+      ...activity,
+      lat: 10.8231 + (Math.random() - 0.5) * 0.2,
+      lng: 106.6297 + (Math.random() - 0.5) * 0.2
+    }))
     
     days.push({
       date: currentDate.toISOString().split('T')[0],
-      items: activities.slice(startIdx, endIdx)
+      items: dayActivities
     })
   }
   
   return {
-    summary: `Chuyến đi từ ${tripInfo?.from || 'điểm xuất phát'} đến ${tripInfo?.to || 'điểm đến'} với ${activities.length} hoạt động được đề xuất.`,
+    summary: `Chuyến đi ${numDays} ngày từ ${tripInfo?.from || 'điểm xuất phát'} đến ${tripInfo?.to || 'điểm đến'} với các hoạt động đa dạng và phong phú.`,
     days: days
   }
 }
@@ -155,18 +148,38 @@ function createDefaultItinerary(tripInfo) {
   if (tripInfo?.dates?.start && tripInfo?.dates?.end) {
     const startDate = new Date(tripInfo.dates.start)
     const endDate = new Date(tripInfo.dates.end)
-    numDays = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)))
+    numDays = Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1)
   }
   
-  // Create basic activities with specific location names
-  const basicActivities = [
-    { time: '08:00', title: 'Chuyến bay Hà Nội - Đắk Lắk', lat: 21.0285, lng: 105.8542 },
-    { time: '10:00', title: 'Di chuyển đến Hotel A25', lat: 14.1119, lng: 108.3596 },
-    { time: '12:00', title: 'Ăn trưa tại Nhà hàng Đặc sản', lat: 14.1119, lng: 108.3596 },
-    { time: '14:00', title: 'Tham quan Bảo tàng Đắk Lắk', lat: 14.1119, lng: 108.3596 },
-    { time: '16:00', title: 'Cà phê tại Trung Nguyên Legend', lat: 14.1119, lng: 108.3596 },
-    { time: '18:00', title: 'Ăn tối tại Quán ăn Địa phương', lat: 14.1119, lng: 108.3596 },
-    { time: '20:00', title: 'Nghỉ đêm tại Hotel A25', lat: 14.1119, lng: 108.3596 }
+  // Create different activity templates for variety
+  const activityTemplates = [
+    // Day 1 - Arrival and city exploration
+    [
+      { time: '08:00', title: 'Chuyến bay tới điểm đến', lat: 21.0285, lng: 105.8542 },
+      { time: '11:00', title: 'Đến sân bay và di chuyển', lat: 14.1119, lng: 108.3596 },
+      { time: '13:00', title: 'Nhận phòng và ăn trưa', lat: 14.1119, lng: 108.3596 },
+      { time: '15:00', title: 'Tham quan trung tâm thành phố', lat: 14.1119, lng: 108.3596 },
+      { time: '17:30', title: 'Thưởng thức cà phê địa phương', lat: 14.1119, lng: 108.3596 },
+      { time: '19:00', title: 'Ăn tối tại nhà hàng đặc sản', lat: 14.1119, lng: 108.3596 }
+    ],
+    // Day 2 - Cultural exploration
+    [
+      { time: '07:30', title: 'Ăn sáng tại khách sạn', lat: 14.1119, lng: 108.3596 },
+      { time: '09:00', title: 'Tham quan bảo tàng và di tích', lat: 14.1119, lng: 108.3596 },
+      { time: '11:30', title: 'Khám phá chợ địa phương', lat: 14.1119, lng: 108.3596 },
+      { time: '13:30', title: 'Ăn trưa món đặc sản vùng', lat: 14.1119, lng: 108.3596 },
+      { time: '15:30', title: 'Tham quan làng nghề truyền thống', lat: 14.1119, lng: 108.3596 },
+      { time: '18:30', title: 'Ăn tối và xem biểu diễn văn hóa', lat: 14.1119, lng: 108.3596 }
+    ],
+    // Day 3 - Nature and adventure
+    [
+      { time: '08:00', title: 'Khởi hành tham quan thiên nhiên', lat: 14.1119, lng: 108.3596 },
+      { time: '10:00', title: 'Trekking và khám phá rừng', lat: 14.1119, lng: 108.3596 },
+      { time: '12:30', title: 'Ăn trưa picnic ngoài trời', lat: 14.1119, lng: 108.3596 },
+      { time: '14:30', title: 'Tham quan thác nước', lat: 14.1119, lng: 108.3596 },
+      { time: '16:30', title: 'Nghỉ ngơi và ngắm cảnh', lat: 14.1119, lng: 108.3596 },
+      { time: '18:30', title: 'Ăn tối BBQ ngoài trời', lat: 14.1119, lng: 108.3596 }
+    ]
   ]
   
   // Create days based on actual duration
@@ -177,19 +190,22 @@ function createDefaultItinerary(tripInfo) {
     const currentDate = new Date(startDate)
     currentDate.setDate(currentDate.getDate() + i)
     
-    // Distribute activities across days
-    const itemsPerDay = Math.ceil(basicActivities.length / numDays)
-    const startIdx = i * itemsPerDay
-    const endIdx = Math.min(startIdx + itemsPerDay, basicActivities.length)
+    // Use different template for each day, cycle if more days than templates
+    const templateIndex = i % activityTemplates.length
+    const dayActivities = activityTemplates[templateIndex].map(activity => ({
+      ...activity,
+      lat: activity.lat + (Math.random() - 0.5) * 0.01, // Small variation in coordinates
+      lng: activity.lng + (Math.random() - 0.5) * 0.01
+    }))
     
     days.push({
       date: currentDate.toISOString().split('T')[0],
-      items: basicActivities.slice(startIdx, endIdx)
+      items: dayActivities
     })
   }
   
   return {
-    summary: `Chuyến đi từ ${tripInfo?.from || 'điểm xuất phát'} đến ${tripInfo?.to || 'điểm đến'} với ${basicActivities.length} hoạt động cơ bản.`,
+    summary: `Chuyến đi ${numDays} ngày từ ${tripInfo?.from || 'điểm xuất phát'} đến ${tripInfo?.to || 'điểm đến'} với ${numDays * 6} hoạt động đa dạng.`,
     days: days
   }
 }
@@ -324,21 +340,67 @@ function ItineraryView({ data, tripInfo }) {
   if (tripInfo?.dates?.start && tripInfo?.dates?.end) {
     const startDate = new Date(tripInfo.dates.start)
     const endDate = new Date(tripInfo.dates.end)
-    actualDays = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)))
+    actualDays = Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1)
   }
   
-  // Force limit days to actual requested days
-  const limitedDays = days ? days.slice(0, actualDays) : []
+  // Ensure we have the correct number of days
+  let finalDays = days || []
   
-  const totalDays = days?.length || 0
-  const startDate = days?.[0]?.date
-  const endDate = days?.[totalDays - 1]?.date
+  // If we have fewer days than requested, create additional days
+  if (finalDays.length < actualDays && tripInfo) {
+    const startDate = tripInfo?.dates?.start ? new Date(tripInfo.dates.start) : new Date()
+    
+    const additionalDayTemplates = [
+      [
+        { time: '08:30', title: 'Khởi hành tour mới', lat: 10.8231, lng: 106.6297 },
+        { time: '10:30', title: 'Tham quan địa danh nổi tiếng', lat: 10.8331, lng: 106.6397 },
+        { time: '12:30', title: 'Ăn trưa tại nhà hàng view đẹp', lat: 10.8131, lng: 106.6197 },
+        { time: '14:30', title: 'Trải nghiệm văn hóa địa phương', lat: 10.8431, lng: 106.6497 },
+        { time: '17:00', title: 'Mua sắm quà lưu niệm', lat: 10.8531, lng: 106.6597 },
+        { time: '19:00', title: 'Ăn tối buffet địa phương', lat: 10.8631, lng: 106.6697 }
+      ],
+      [
+        { time: '07:45', title: 'Khám phá thiên nhiên hoang dã', lat: 10.8231, lng: 106.6297 },
+        { time: '09:45', title: 'Trekking và leo núi nhẹ', lat: 10.8331, lng: 106.6397 },
+        { time: '12:15', title: 'Ăn trưa tại suối', lat: 10.8131, lng: 106.6197 },
+        { time: '14:45', title: 'Bơi lội và thư giãn', lat: 10.8431, lng: 106.6497 },
+        { time: '16:45', title: 'Chụp ảnh hoàng hôn', lat: 10.8531, lng: 106.6597 },
+        { time: '18:45', title: 'Ăn tối hải sản tươi sống', lat: 10.8631, lng: 106.6697 }
+      ]
+    ]
+    
+    for (let i = finalDays.length; i < actualDays; i++) {
+      const currentDate = new Date(startDate)
+      currentDate.setDate(currentDate.getDate() + i)
+      
+      const templateIndex = i % additionalDayTemplates.length
+      const dayActivities = additionalDayTemplates[templateIndex].map(activity => ({
+        ...activity,
+        lat: activity.lat + (Math.random() - 0.5) * 0.02,
+        lng: activity.lng + (Math.random() - 0.5) * 0.02
+      }))
+      
+      finalDays.push({
+        date: currentDate.toISOString().split('T')[0],
+        items: dayActivities
+      })
+    }
+  }
+  
+  // If we have more days than requested, limit to requested days
+  if (finalDays.length > actualDays) {
+    finalDays = finalDays.slice(0, actualDays)
+  }
+  
+  const totalDays = finalDays?.length || 0
+  const startDate = finalDays?.[0]?.date
+  const endDate = finalDays?.[totalDays - 1]?.date
   
   return (
     <div className="itin">
       <div className="itin__tabs">
         <button className="tab tab--active">Tổng quan</button>
-        {Array.from({ length: Math.min(actualDays, limitedDays.length) }, (_, i) => (
+        {Array.from({ length: totalDays }, (_, i) => (
           <button key={i} className="tab">Ngày {i+1}</button>
         ))}
       </div>
@@ -348,7 +410,7 @@ function ItineraryView({ data, tripInfo }) {
           <div className="itin__banner" />
           <div className="itin__hero__body">
             <h2 className="itin__hero__title">
-              {Math.min(actualDays, limitedDays.length)} ngày {tripInfo?.from && tripInfo?.to ? `từ ${tripInfo.from} đến ${tripInfo.to}` : 'du lịch'}
+              {totalDays} ngày {tripInfo?.from && tripInfo?.to ? `từ ${tripInfo.from} đến ${tripInfo.to}` : 'du lịch'}
             </h2>
             <div className="itin__chips">
               {startDate && endDate && (
@@ -376,7 +438,7 @@ function ItineraryView({ data, tripInfo }) {
         </div>
       )}
       
-      {Array.isArray(limitedDays) && limitedDays.map((d, idx) => (
+      {Array.isArray(finalDays) && finalDays.map((d, idx) => (
         <div className="itin__day" key={idx}>
           <div className="itin__dayhead">
             Ngày {idx + 1} • {d.date ? new Date(d.date).toLocaleDateString('vi-VN', { 
@@ -416,5 +478,3 @@ function ItineraryView({ data, tripInfo }) {
 }
 
 export default ItineraryView
-
-

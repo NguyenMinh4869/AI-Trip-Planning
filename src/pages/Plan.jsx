@@ -53,9 +53,9 @@ function Plan() {
         {/* Header */}
         <div className="plan-header">
           <div className="plan-header__content">
-            <h1 className="plan-header__logo">Easytrip.ai</h1>
+            <h1 className="plan-header__logo">hehehahahi</h1>
             <div className="plan-header__actions">
-              <button className="btn btn--ghost">Sign in</button>
+              <button className="btn btn--ghost">Đăng kí</button>
             </div>
           </div>
         </div>

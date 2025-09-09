@@ -144,6 +144,42 @@ SPECIFIC LOCATION REQUIREMENTS:
 
 CRITICAL: The "days" array must contain EXACTLY ${numDays} objects. Do not create extra days.
 
+EXAMPLE FOR ${numDays} DAY${numDays > 1 ? 'S' : ''}:
+${numDays === 1 ? 
+  `{
+    "summary": "1 day trip from ${from} to ${to}",
+    "days": [
+      {
+        "date": "${start}",
+        "items": [
+          {"time": "08:00", "title": "Activity 1", "lat": 10.1234, "lng": 106.5678},
+          {"time": "10:00", "title": "Activity 2", "lat": 10.1234, "lng": 106.5678},
+          {"time": "12:00", "title": "Activity 3", "lat": 10.1234, "lng": 106.5678}
+        ]
+      }
+    ]
+  }` :
+  `{
+    "summary": "${numDays} day trip from ${from} to ${to}",
+    "days": [
+      {
+        "date": "${start}",
+        "items": [
+          {"time": "08:00", "title": "Day 1 Activity 1", "lat": 10.1234, "lng": 106.5678},
+          {"time": "10:00", "title": "Day 1 Activity 2", "lat": 10.1234, "lng": 106.5678}
+        ]
+      },
+      {
+        "date": "${end}",
+        "items": [
+          {"time": "08:00", "title": "Day 2 Activity 1", "lat": 10.1234, "lng": 106.5678},
+          {"time": "10:00", "title": "Day 2 Activity 2", "lat": 10.1234, "lng": 106.5678}
+        ]
+      }
+    ]
+  }`
+}
+
 IMPORTANT FORMATTING RULES:
 - Each activity title must be SHORT and CONCISE (max 40 characters)
 - Use SPECIFIC location names, not generic terms

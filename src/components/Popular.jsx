@@ -1,19 +1,19 @@
 import React from 'react'
 
 const PLACEHOLDERS = [
-  { title: 'Paris' },
-  { title: 'Sydney' },
-  { title: 'Tokyo' },
-  { title: 'New York' },
-  { title: 'Bali' },
-  { title: 'Grand Canyon' },
+  { title: 'Lào Cai' },
+  { title: 'Đắk Lắk' },
+  { title: 'Hồ Chí Minh' },
+  { title: 'Hải Phòng' },
+  { title: 'Thanh Hóa' },
+  { title: 'Đà Nẵng' },
 ]
 
 function Popular() {
   return (
     <section className="popular" id="popular">
       <div className="popular__container">
-        <h2 className="popular__title">Popular destinations</h2>
+        <h2 className="popular__title">Địa điểm nổi tiếng</h2>
         <div className="popular__grid">
           {PLACEHOLDERS.map((p) => (
             <div key={p.title} className="card">
