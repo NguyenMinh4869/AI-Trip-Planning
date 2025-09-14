@@ -5,7 +5,7 @@ import { generateItinerary, buildItineraryPrompt } from '../lib/aiClient'
 
 function Plan() {
   const location = useLocation()
-  const { from, to, dates, options } = (location.state || {})
+  const { to, dates, options } = (location.state || {})
   const [loading, setLoading] = useState(false)
   const [itinerary, setItinerary] = useState(null)
 
@@ -22,12 +22,12 @@ function Plan() {
 
   useEffect(() => {
     async function run() {
-      if (!from || !to) return
+      if (!to) return
       try {
         setLoading(true)
-        console.log('Generating itinerary with options:', { from, to, dates, options })
+        console.log('Generating itinerary with options:', { to, dates, options })
         
-        const prompt = buildItineraryPrompt({ from, to, dates, options })
+        const prompt = buildItineraryPrompt({ to, dates, options })
         console.log('Generated prompt:', prompt)
         
         const text = await generateItinerary(prompt)
@@ -45,7 +45,7 @@ function Plan() {
       }
     }
     run()
-  }, [from, to, dates, options])
+  }, [to, dates, options])
 
   return (
     <div className="layout">
@@ -67,7 +67,7 @@ function Plan() {
             <p>AI đang phân tích và tạo kế hoạch chi tiết cho chuyến đi của bạn</p>
           </div>
         )}
-        <ItineraryView data={itinerary} tripInfo={{ from, to, dates, options }} />
+        <ItineraryView data={itinerary} tripInfo={{ to, dates, options }} />
       </div>
       <div className="map" id="map" />
     </div>

@@ -5,7 +5,6 @@ import ItineraryView from './ItineraryView'
 import { useNavigate } from 'react-router-dom'
 
 function Hero() {
-  const [fromPlace, setFromPlace] = useState('')
   const [toPlace, setToPlace] = useState('')
   const [loading, setLoading] = useState(false)
   const [itinerary, setItinerary] = useState(null)
@@ -17,29 +16,19 @@ function Hero() {
         <p className="hero__subtitle">Lên kế hoạch đi chơi chỉ trong 10 giây!</p>
         <div className="search search--route">
           <div className="search__seg">
-            <span className="search__icon" aria-hidden>🛫</span>
-            <input
-              className="search__input"
-              placeholder="From"
-              value={fromPlace}
-              onChange={(e) => setFromPlace(e.target.value)}
-            />
-          </div>
-          <button type="button" className="search__swap" onClick={() => { const a = fromPlace; setFromPlace(toPlace); setToPlace(a) }}>⇆</button>
-          <div className="search__seg">
             <span className="search__icon" aria-hidden>📍</span>
             <input
               className="search__input"
-              placeholder="To"
+              placeholder="Điểm đến"
               value={toPlace}
               onChange={(e) => setToPlace(e.target.value)}
             />
           </div>
         </div>
-        {fromPlace && toPlace && (
+        {toPlace && (
           <TripFields
             onGenerate={({ dates, options }) => {
-              navigate('/plan', { state: { from: fromPlace, to: toPlace, dates, options } })
+              navigate('/plan', { state: { to: toPlace, dates, options } })
             }}
           />
         )}
@@ -50,7 +39,7 @@ function Hero() {
             <p>AI đang phân tích và tạo kế hoạch chi tiết cho chuyến đi của bạn</p>
           </div>
         )}
-        {itinerary && <ItineraryView data={itinerary} tripInfo={{ from: fromPlace, to: toPlace }} />}
+        {itinerary && <ItineraryView data={itinerary} tripInfo={{ to: toPlace }} />}
       </div>
     </section>
   )

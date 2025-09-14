@@ -58,7 +58,7 @@ export async function generateItinerary(prompt) {
   throw lastErr || new Error('All models failed')
 }
 
-export function buildItineraryPrompt({ from, to, dates, options }) {
+export function buildItineraryPrompt({ to, dates, options }) {
   const start = dates?.start || 'TBD'
   const end = dates?.end || 'TBD'
   const guests = options?.guests || 'solo'
@@ -116,8 +116,7 @@ Required JSON schema:
 }
 
 Trip details:
-- From: ${from}
-- To: ${to}
+- Destination: ${to}
 - Dates: ${start} to ${end}
 - Duration: ${numDays} day${numDays > 1 ? 's' : ''}
 - Travelers: ${guestDesc}
@@ -147,7 +146,7 @@ CRITICAL: The "days" array must contain EXACTLY ${numDays} objects. Do not creat
 EXAMPLE FOR ${numDays} DAY${numDays > 1 ? 'S' : ''}:
 ${numDays === 1 ? 
   `{
-    "summary": "1 day trip from ${from} to ${to}",
+    "summary": "1 day trip in ${to}",
     "days": [
       {
         "date": "${start}",
@@ -160,7 +159,7 @@ ${numDays === 1 ?
     ]
   }` :
   `{
-    "summary": "${numDays} day trip from ${from} to ${to}",
+    "summary": "${numDays} day trip in ${to}",
     "days": [
       {
         "date": "${start}",
